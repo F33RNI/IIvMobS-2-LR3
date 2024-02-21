@@ -177,73 +177,88 @@ class Dialogue:
         return intent
 
     def next_message(self, request: str, user_id: int) -> List[str]:
-        # List of strings of responses
-        responses = []
+        """Generates list of next messages from request and user
 
-        # New user
-        if not user_id in self._users_topics:
-            logging.info(f"Creating new user: {user_id}")
-            self._users_topics[user_id] = "undefined"
+        Args:
+            request (str): user's new request
+            user_id (int): user's id (for storing theme)
 
-        # Extract topic
-        user_topic = self._users_topics[user_id]
+        Returns:
+            List[str]: messages as strings
+        """
+        try:
+            # List of strings of responses
+            responses = []
 
-        # Predict intent
-        user_intent = self.intent_predict(request)
+            # New user
+            if not user_id in self._users_topics:
+                logging.info(f"Creating new user: {user_id}")
+                self._users_topics[user_id] = "undefined"
 
-        # Log request
-        logging.info(f"Request from user {user_id}: {request}. User's topic: {user_topic}, intent: {user_intent}")
+            # Extract topic
+            user_topic = self._users_topics[user_id]
 
-        # Error
-        if not user_intent:
+            # Predict intent
+            user_intent = self.intent_predict(request)
+
+            # Log request
+            logging.info(f"Request from user {user_id}: {request}. User's topic: {user_topic}, intent: {user_intent}")
+
+            # Error
+            if not user_intent:
+                return [random.choice(self._messages["failure"])]
+
+            # Check if need to send advertisement
+            ad = self._messages["intents"][user_intent]["ad_rate"] > random.random()
+            if ad:
+                logging.info("Advertising is enabled")
+
+            # Retrieve topic index
+            topic_index = 0
+            for i, topic in enumerate(self._messages["intents"][user_intent]["topics"]):
+                if user_topic in topic["current"]:
+                    topic_index = i
+
+            # Select topic
+            topic = self._messages["intents"][user_intent]["topics"][topic_index]
+
+            # Select response
+            topic_responses = topic["ad"] if (ad and "ad" in topic) else topic["normal"]
+            topic_response = random.choice(topic_responses)
+
+            # Retrieve next topic
+            topic_next = topic_response["topic_next"]
+
+            # Set user's next topic
+            logging.info(f"New user topic: {topic_next}")
+            self._users_topics[user_id] = topic_next
+
+            # Fail
+            if topic_next == "failure":
+                return [random.choice(self._messages["failure"])]
+
+            # Append response
+            if "response" in topic_response:
+                responses.append(topic_response["response"])
+
+            # Additional response?
+            if "additional_intent" in topic_response:
+                additional_topics = self._messages["intents"][topic_response["additional_intent"]]["topics"]
+                logging.info(f"Additional content: \"{topic_response['additional_intent']}\" intent")
+                additional_topic_index = 0
+                for i, topic in enumerate(additional_topics):
+                    if topic_next in topic["current"]:
+                        additional_topic_index = i
+                topic_normal = random.choice(additional_topics[additional_topic_index]["normal"])
+                if "response" in topic_normal:
+                    responses.append(topic_normal["response"])
+
+            return responses
+
+        # Unknown error (just in case)
+        except Exception as e:
+            logging.error(f'Error generating next message for request "{request}" from user {user_id}', exc_info=e)
             return [random.choice(self._messages["failure"])]
-
-        # Check if need to send advertisement
-        ad = self._messages["intents"][user_intent]["ad_rate"] > random.random()
-        if ad:
-            logging.info("Advertising is enabled")
-
-        # Retrieve topic index
-        topic_index = 0
-        for i, topic in enumerate(self._messages["intents"][user_intent]["topics"]):
-            if user_topic in topic["current"]:
-                topic_index = i
-
-        # Select topic
-        topic = self._messages["intents"][user_intent]["topics"][topic_index]
-
-        # Select response
-        topic_responses = topic["ad"] if (ad and "ad" in topic) else topic["normal"]
-        topic_response = random.choice(topic_responses)
-
-        # Retrieve next topic
-        topic_next = topic_response["topic_next"]
-
-        # Set user's next topic
-        logging.info(f"New user topic: {topic_next}")
-        self._users_topics[user_id] = topic_next
-
-        # Fail
-        if topic_next == "failure":
-            return [random.choice(self._messages["failure"])]
-
-        # Append response
-        if "response" in topic_response:
-            responses.append(topic_response["response"])
-
-        # Additional response?
-        if "additional_intent" in topic_response:
-            additional_topics = self._messages["intents"][topic_response["additional_intent"]]["topics"]
-            logging.info(f"Additional content: \"{topic_response['additional_intent']}\" intent")
-            additional_topic_index = 0
-            for i, topic in enumerate(additional_topics):
-                if topic_next in topic["current"]:
-                    additional_topic_index = i
-            topic_normal = random.choice(additional_topics[additional_topic_index]["normal"])
-            if "response" in topic_normal:
-                responses.append(topic_normal["response"])
-
-        return responses
 
 
 class BotHandler:
@@ -254,6 +269,7 @@ class BotHandler:
         self._application = None
 
     def start(self) -> None:
+        """Builds bot and starts polling"""
         # Close previous event loop (just in case)
         try:
             loop = asyncio.get_running_loop()
