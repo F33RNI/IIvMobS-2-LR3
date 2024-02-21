@@ -1,6 +1,6 @@
 {
     "intents": {
-        "hello": {
+        "привет": {
             "ad_rate": 0.25,
             "topics": [
                 {
@@ -44,7 +44,7 @@
                 "begin"
             ]
         },
-        "bye": {
+        "пока": {
             "ad_rate": 0.1,
             "topics": [
                 {
@@ -83,7 +83,7 @@
                 "Увидимся"
             ]
         },
-        "thanks": {
+        "спасибо": {
             "ad_rate": 0.2,
             "topics": [
                 {
@@ -123,7 +123,7 @@
                 "Мне понравилось"
             ]
         },
-        "name": {
+        "кто": {
             "ad_rate": 0.25,
             "topics": [
                 {
@@ -160,7 +160,7 @@
                 "Кто ты"
             ]
         },
-        "want_eat": {
+        "еда": {
             "ad_rate": 0.5,
             "topics": [
                 {
@@ -194,12 +194,12 @@
                         {
                             "response": "Конечно! Я могу предложить разнообразие сладостей на выбор!",
                             "topic_next": "sweets_select",
-                            "additional_intent": "sweets"
+                            "additional_intent": "сладости"
                         },
                         {
                             "response": "Я знаю большой ассортимент сладостей!",
                             "topic_next": "sweets_select",
-                            "additional_intent": "sweets"
+                            "additional_intent": "сладости"
                         }
                     ]
                 }
@@ -213,7 +213,7 @@
                 "Чтобы покушать?"
             ]
         },
-        "yes": {
+        "да": {
             "ad_rate": 0.5,
             "topics": [
                 {
@@ -268,7 +268,7 @@
                     "normal": [
                         {
                             "topic_next": "sweets_select",
-                            "additional_intent": "sweets"
+                            "additional_intent": "сладости"
                         }
                     ]
                 },
@@ -279,7 +279,7 @@
                     "normal": [
                         {
                             "topic_next": "mints_select",
-                            "additional_intent": "mints"
+                            "additional_intent": "мятные"
                         }
                     ]
                 }
@@ -294,7 +294,7 @@
                 "да, хочу"
             ]
         },
-        "no": {
+        "нет": {
             "ad_rate": 0.0,
             "topics": [
                 {
@@ -356,7 +356,7 @@
                 "Никакое"
             ]
         },
-        "cabbage": {
+        "капуста": {
             "ad_rate": 0.8,
             "topics": [
                 {
@@ -388,7 +388,7 @@
                 "Хочу капусту"
             ]
         },
-        "carrot": {
+        "морковь": {
             "ad_rate": 0.8,
             "topics": [
                 {
@@ -424,7 +424,7 @@
                 "Хочу морковь"
             ]
         },
-        "burger": {
+        "бургер": {
             "ad_rate": 0.5,
             "topics": [
                 {
@@ -456,7 +456,7 @@
                 "Бургер сытный"
             ]
         },
-        "sandwich": {
+        "бутерброд": {
             "ad_rate": 0.5,
             "topics": [
                 {
@@ -489,7 +489,7 @@
                 "Бутерброд простой"
             ]
         },
-        "sweets": {
+        "сладости": {
             "ad_rate": 0.0,
             "topics": [
                 {
@@ -512,7 +512,7 @@
                 "Сладости?"
             ]
         },
-        "mints": {
+        "мятные": {
             "ad_rate": 0.0,
             "topics": [
                 {

@@ -28,6 +28,7 @@ For more information, please refer to <https://unlicense.org>
 import asyncio
 import json
 import logging
+import os
 import random
 import sys
 from typing import Dict, List
@@ -53,6 +54,17 @@ BOT_COMMAND_START = "start"
 
 # JSON file with all messages (instead of BOT_CONFIG)
 MESSAGES_FILE = "messages.json"
+
+# File with dialogues
+DIALOGUES_FILE = "dialogues.txt"
+
+# Limits on how to parse dialogues
+DIALOGUES_MAX = 2000
+DIALOGUES_MAX_PER_INTENT = 100
+
+# Where to save parsed DIALOGUES_FILE to prevent parsing it each time
+DIALOGUES_FILE_PARSED_OUTPUT = "dialogues.json"
+
 
 # Allowed characters
 ALPHABET = "abcdefghijklmnopqrstuvwxyzабвгдеёжзийклмнопрстуфхцчшщъыьэюя1234567890- "
@@ -114,6 +126,8 @@ class Dialogue:
     def __init__(self, messages: Dict) -> None:
         self._messages = messages
 
+        self._dialogues_structured = {}
+
         self._vectorizer = None
         self._classifier = None
         self._users_topics = {}
@@ -127,15 +141,98 @@ class Dialogue:
         Returns:
             str: simplified request
         """
-        phrase = phrase.lower()
-        result = "".join(symbol for symbol in phrase if symbol in ALPHABET)
-        return result.strip()
+        return "".join(symbol for symbol in phrase.lower() if symbol in ALPHABET).strip()
 
-    def train_classifier(self) -> None:
-        """Creates and trains LinearSVC intent classifier"""
-        # Build dataset
+    def parse_dialogues_from_file(self) -> None:
+        """Loads dialogues from pre-parsed file if exists or parses it
+        Parsed dialogues structure:
+        (word_1 and word_2 ... are some sort of intents)
+        {
+            "word_1": [
+                [
+                    "simplified example",
+                    "Answer (response)"
+                ],
+                [
+                    "another simplified example",
+                    "Another answer (response)"
+                ]
+            ],
+            "word_2": [
+            ....
+        }
+        """
+        # Load from pre-parsed
+        if os.path.exists(DIALOGUES_FILE_PARSED_OUTPUT):
+            logging.info(f"Loading pre-parsed dialogues from {DIALOGUES_FILE_PARSED_OUTPUT}")
+            with open(DIALOGUES_FILE_PARSED_OUTPUT, "r", encoding="utf-8") as file:
+                self._dialogues_structured = json.load(file)
+            logging.info(f"Dialogues for {len(self._dialogues_structured)} words loaded!")
+            return
+
+        # Load the dialogues data from the file
+        logging.warning(f"No {DIALOGUES_FILE_PARSED_OUTPUT} file found! Loading dialogues from {DIALOGUES_FILE}")
+        with open(DIALOGUES_FILE, "r", encoding="utf-8") as file:
+            content = file.read()
+
+        # Split by double lines
+        dialogues = [dialogue.split("\n")[:2] for dialogue in content.split("\n\n") if len(dialogue.split("\n")) == 2]
+
+        # Filter out duplicate questions and format the phrases
+        logging.info("Filtering dialogues")
+        dialogues_filtered = []
+        questions = set()
+        for dialogue in dialogues:
+            # Check max size
+            if len(dialogues_filtered) > DIALOGUES_MAX:
+                break
+            question, answer = dialogue
+            question = self.phrase_simplify(question[2:])
+            answer = answer[2:]
+            if question and question not in questions:
+                questions.add(question)
+                dialogues_filtered.append([question, answer])
+
+        # Create a dictionary of words and their associated pairs of question and answer
+        logging.info("Structurizing dialogues")
+        dialogues_structured = {}
+        for question, answer in dialogues_filtered:
+            words = set(question.split())
+            for word in words:
+                dialogues_structured.setdefault(word, []).append([question, answer])
+
+        # Sort the pairs by question length and keep only the first DIALOGUES_MAX_PER_INTENT for each word
+        logging.info("Sorting dialogues")
+        self._dialogues_structured = {
+            word: sorted(pairs, key=lambda pair: len(pair[0]))[:DIALOGUES_MAX_PER_INTENT]
+            for word, pairs in dialogues_structured.items()
+        }
+
+        # Save parsed
+        logging.info(f"Saving parsed dialogues to {DIALOGUES_FILE_PARSED_OUTPUT}")
+        with open(DIALOGUES_FILE_PARSED_OUTPUT, "w+", encoding="utf-8") as file:
+            file.write(json.dumps(self._dialogues_structured, indent=4, ensure_ascii=False))
+
+        # Done
+        logging.info(f"Dialogues for {len(self._dialogues_structured)} words loaded!")
+
+    def train_classifier(self, train_on_dialogues: bool) -> None:
+        """Creates and trains LinearSVC intent classifier
+
+        Args:
+            train_on_dialogues (bool): True to also train using self._dialogues_structured
+        """
         intent_names = []
         intent_examples = []
+
+        # Train on dialogues.txt
+        if train_on_dialogues:
+            for intent, dialogues_list in self._dialogues_structured.items():
+                for dialogue_ in dialogues_list:
+                    intent_names.append(intent)
+                    intent_examples.append(dialogue_[0])
+
+        # Train on normal messages
         for intent, intent_data in self._messages["intents"].items():
             for example in intent_data["examples"]:
                 intent_names.append(intent)
@@ -147,7 +244,7 @@ class Dialogue:
 
         # Initialize classifier
         if self._classifier is None:
-            self._classifier = LinearSVC()
+            self._classifier = LinearSVC(dual=True)
 
         # Train
         logging.info("Training intent classifier...")
@@ -207,6 +304,16 @@ class Dialogue:
             # Error
             if not user_intent:
                 return [random.choice(self._messages["failure"])]
+
+            # Check in normal messages
+            if not user_intent in self._messages["intents"]:
+                # Use dialogues.txt instead
+                if user_intent in self._dialogues_structured:
+                    return [random.choice(self._dialogues_structured[user_intent])[1]]
+
+                # Not in dialogues.txt
+                else:
+                    return [random.choice(self._messages["failure"])]
 
             # Check if need to send advertisement
             ad = self._messages["intents"][user_intent]["ad_rate"] > random.random()
@@ -339,9 +446,8 @@ def main() -> None:
 
     # Load messages from JSON
     logging.info(f"Loading messages from {MESSAGES_FILE}")
-    messages_file = open(MESSAGES_FILE, "r", encoding="utf-8")
-    messages = json.load(messages_file)
-    messages_file.close()
+    with open(MESSAGES_FILE, "r", encoding="utf-8") as file:
+        messages = json.load(file)
 
     # Initialize dialog handler
     dialogue = Dialogue(messages)
@@ -349,8 +455,11 @@ def main() -> None:
     # Initialize bot class
     bot_handler = BotHandler(dialogue)
 
+    # Parse dialogues
+    dialogue.parse_dialogues_from_file()
+
     # Train
-    dialogue.train_classifier()
+    dialogue.train_classifier(train_on_dialogues=True)
 
     # Start bot
     bot_handler.start()
