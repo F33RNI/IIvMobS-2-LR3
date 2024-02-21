@@ -1,0 +1,6 @@
+venv/
+.venv/
+__pycache__/
+messages_en.json
+messages_.json
+test.py
