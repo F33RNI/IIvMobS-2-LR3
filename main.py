@@ -27,38 +27,16 @@ For more information, please refer to <https://unlicense.org>
 
 import json
 import logging
-import sys
 
 from bot import Bot
 
 from dialogues import Dialogues
 
 
-def logging_setup() -> None:
-    """Настройка формата и уровня ведения журнала"""
-
-    # Создание форматтера журнала
-    log_formatter = logging.Formatter(
-        "%(asctime)s %(threadName)s %(levelname)-8s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-    )
-
-    # Настройка вывода журнала в консоль
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(log_formatter)
-
-    # Добавление всех обработчиков и установка уровня
-    root_logger = logging.getLogger()
-    root_logger.addHandler(console_handler)
-    root_logger.setLevel(logging.INFO)
-
-    # Журналирование тестового сообщения
-    logging.info("Настройка журнала завершена")
-
-
 def main() -> None:
     """Основной вход"""
     # Инициализация журнала
-    logging_setup()
+    logging.basicConfig(level=logging.INFO)
 
     # Загрузка сообщений из JSON
     logging.info("Загрузка сообщений из bot_config.json")
