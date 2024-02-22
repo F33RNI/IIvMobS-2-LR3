@@ -218,7 +218,7 @@ def main():
     # Initialize logging
     logging.basicConfig(level=logging.INFO)
 
-    builder = ApplicationBuilder().token("6909462391:AAHpU3Qw8U-jugE7p5VoGvkxeo0ltmFvVeY")
+    builder = ApplicationBuilder().token("1099502691:AAEdBLT5DY9by6z_Qi8UpyOpaxZfJBVsw9c")
     application = builder.build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
