@@ -110,7 +110,7 @@ async def _send_safe(
     try:
         await context.bot.send_message(
             chat_id=chat_id,
-            text=text.replace("\\n", "\n").replace("\\t", "\t"),
+            text=text,
             reply_to_message_id=reply_to_message_id,
             reply_markup=reply_markup,
             disable_web_page_preview=True,
