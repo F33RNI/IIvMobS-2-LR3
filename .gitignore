@@ -1,0 +1,7 @@
+venv/
+.venv/
+__pycache__/
+messages_en.json
+messages_.json
+dialogues.json
+test.py
